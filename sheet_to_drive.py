@@ -112,6 +112,9 @@ def download_best(url: str, out_dir: Path) -> Path:
     }
     if shutil.which("node"):
         opts["js_runtimes"] = {"node": {}}  # lets yt-dlp solve YouTube JS challenges
+    proxy = os.environ.get("YT_PROXY")  # optional: http://user:pass@host:port
+    if proxy:
+        opts["proxy"] = proxy
     cookies = os.environ.get("YT_COOKIES")  # optional: contents of a cookies.txt
     if cookies:
         cookie_file = out_dir / "cookies.txt"
