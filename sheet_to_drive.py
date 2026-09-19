@@ -118,7 +118,13 @@ def download_best(url: str, out_dir: Path) -> Path:
     cookies = os.environ.get("YT_COOKIES")  # optional: contents of a cookies.txt
     if cookies:
         cookie_file = out_dir / "cookies.txt"
-        cookie_file.write_text(cookies)
+        # Pasting into a web form can turn tabs into spaces; restore the 7 tab-separated fields.
+        lines = []
+        for line in cookies.strip().splitlines():
+            parts = line.split()
+            is_comment = line.startswith("#") and not line.startswith("#HttpOnly_")
+            lines.append("\t".join(parts) if len(parts) == 7 and not is_comment else line)
+        cookie_file.write_text("# Netscape HTTP Cookie File\n" + "\n".join(lines) + "\n")
         opts["cookiefile"] = str(cookie_file)
     with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(url, download=True)
