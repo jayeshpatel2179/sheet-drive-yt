@@ -120,7 +120,7 @@ def download_best(url: str, out_dir: Path) -> Path:
         cookie_file = out_dir / "cookies.txt"
         # Pasting into a web form can turn tabs into spaces; restore the 7 tab-separated fields.
         lines = []
-        for line in cookies.strip().splitlines():
+        for line in cookies.replace("\\n", "\n").strip().splitlines():  # accept one-line "\n" form
             parts = line.split()
             is_comment = line.startswith("#") and not line.startswith("#HttpOnly_")
             lines.append("\t".join(parts) if len(parts) == 7 and not is_comment else line)
