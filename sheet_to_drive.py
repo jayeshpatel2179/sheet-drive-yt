@@ -24,6 +24,7 @@ import shutil
 import sys
 import tempfile
 import time
+from http.cookiejar import MozillaCookieJar
 from pathlib import Path
 
 import yt_dlp
@@ -126,6 +127,15 @@ def download_best(url: str, out_dir: Path) -> Path:
             lines.append("\t".join(parts) if len(parts) == 7 and not is_comment else line)
         cookie_file.write_text("# Netscape HTTP Cookie File\n" + "\n".join(lines) + "\n")
         opts["cookiefile"] = str(cookie_file)
+        try:
+            jar = MozillaCookieJar(str(cookie_file))
+            jar.load(ignore_discard=True, ignore_expires=True)
+            names = {c.name for c in jar}
+            print(f"  cookies: {len(names)} loaded, login cookie present: {'SAPISID' in names}")
+        except Exception as e:  # noqa: BLE001 - diagnostic only
+            print(f"  cookies: INVALID FORMAT, ignored by yt-dlp ({e})")
+    else:
+        print("  cookies: none set (YT_COOKIES missing)")
     with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(url, download=True)
         return Path(ydl.prepare_filename(info)).with_suffix(".mp4")
@@ -183,6 +193,11 @@ def process_once(ws, drive) -> None:
             ws.update_cell(i, STATUS_COL, "DONE")
         except Exception as e:  # noqa: BLE001 - report any failure to the sheet
             print(f"Row {i}: failed: {e}")
+            if "confirm you" in str(e) and "not a bot" in str(e):
+                # IP/cookie block hits every video: don't burn the remaining rows, retry next poll.
+                ws.update_cell(i, STATUS_COL, "")
+                print("YouTube bot check: stopping this run, will retry on the next poll.")
+                return
             ws.update_cell(i, STATUS_COL, f"FAILED: {str(e)[:120]}")
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
